@@ -1,0 +1,22 @@
+# 上位机配置
+serial:
+  # ESP32 在 Ubuntu 下通常出现为 /dev/ttyUSB0 (CH340) 或 /dev/ttyACM0 (CP2102/原生USB)
+  # 设为 "auto" 时程序会自动扫描第一个可用的串口
+  port: auto
+  baudrate: 115200
+  # 写入超时, 防止 ESP32 离线时阻塞
+  write_timeout: 1.0
+
+sampling:
+  # 采样并发送的间隔(秒), 0.2 = 5Hz, 对模拟指针表已经足够
+  interval: 0.2
+  # CPU 占用率统计窗口, psutil 推荐 >=0.1
+  cpu_window: 0.1
+
+gpu:
+  # NVIDIA / AMD / INTEL / NONE
+  vendor: NVIDIA
+  # 使用第几块 GPU (从 0 开始)
+  index: 0
+
+# 协议: 发往 ESP32 的一行文本格式 "CPU:xx,GPU:yy\n", xx/yy 为 0~100 整数
