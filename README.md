@@ -7,25 +7,32 @@
 ## 目录结构
 
 ```
-monitor/
-├── README.md                 本文档
-├── environment.yml           conda 环境定义
-├── requirements.txt          pip 依赖 (备用)
-├── host/                     Ubuntu 上位机 (Python)
-│   ├── main.py
-│   ├── config.yaml
+gaugepunk/
+├── README.md                      本文档
+├── environment.yml                conda 环境定义 (name: gaugepunk)
+├── requirements.txt               pip 依赖 (备用)
+├── host/                          Ubuntu 上位机 (Python)
+│   ├── main.py                    主程序
+│   ├── calibrate.py               手动校准工具
+│   ├── config.yaml                端口/采样/GPU 厂商配置
 │   └── monitor/
-│       ├── stats.py          CPU/GPU 采集
-│       ├── serial_link.py    串口连接 + 自动重连
-│       └── protocol.py       帧编码
-├── firmware/                 ESP32 固件
-│   ├── platformio/           PlatformIO 工程
+│       ├── stats.py               CPU/GPU 采集
+│       ├── serial_link.py         串口连接 + 自动重连
+│       └── protocol.py            帧编码
+├── firmware/                      ESP32 固件
+│   ├── platformio/                PlatformIO 工程 (推荐)
 │   │   ├── platformio.ini
 │   │   └── src/main.cpp
-│   └── arduino/monitor/      Arduino IDE 工程
-│       └── monitor.ino
+│   └── arduino/gaugepunk/         Arduino IDE 工程 (等价)
+│       └── gaugepunk.ino
+├── scripts/                       打包部署
+│   ├── gaugepunk-run.sh           启动包装 (conda activate + exec)
+│   ├── gaugepunk.service.template systemd unit 模板
+│   ├── install-service.sh         一键装服务
+│   ├── uninstall-service.sh       一键卸服务
+│   └── start.sh                   手动前台启动 (调试用)
 └── docs/
-    └── wiring.md             接线图与元件清单
+    └── wiring.md                  接线图与元件清单
 ```
 
 ## 快速开始
@@ -41,16 +48,9 @@ sudo usermod -aG dialout $USER
 
 #### 1.2 conda 环境
 
-如果还没有环境:
-
 ```bash
-conda env create -f environment.yml
-```
-
-之后每次:
-
-```bash
-conda activate monitor
+conda env create -f environment.yml   # 第一次安装
+conda activate gaugepunk              # 之后每次
 ```
 
 #### 1.3 配置
@@ -86,30 +86,42 @@ python host/main.py
 
 ```bash
 cd firmware/platformio
-pio run -t upload          # 编译 + 烧录
-pio device monitor -b 115200   # 看串口输出 (会被上位机抢占, 仅用于调试)
+pio run -t upload                  # 编译 + 烧录
+pio device monitor -b 115200       # 看串口输出 (会被上位机抢占, 仅用于调试)
 ```
 
 #### Arduino IDE
 
-打开 `firmware/arduino/monitor/monitor.ino`, 选择:
+打开 `firmware/arduino/gaugepunk/gaugepunk.ino`, 选择:
 
 - 开发板: **ESP32 Dev Module** (或你板子的实际型号)
 - 端口  : `/dev/ttyUSB0`
 - 上传速率: 921600
 
-点上传即可.
+### 3. 校准
 
-### 3. 接线
+第一次接好电流表后, 用 `host/calibrate.py` 调整 `PWM_DUTY_CAP_CPU` / `PWM_DUTY_CAP_GPU`:
 
-见 [`docs/wiring.md`](docs/wiring.md). 简版:
+```bash
+python host/calibrate.py 100 0     # 只锁 CPU 满载, 观察 CPU 表指针
+python host/calibrate.py 0 100     # 只锁 GPU 满载, 观察 GPU 表指针
+python host/calibrate.py --sweep   # 0 -> 100 -> 0 扫描
+```
+
+记下两块表"刚好满偏"对应的协议百分比 X / Y, 在固件里:
+```
+new_cap = old_cap × X / 100
+```
+
+调好后重新烧录, 即一次到位.
+
+### 4. 接线
+
+见 [`docs/wiring.md`](docs/wiring.md). 简版 (针对 5mA 电流表):
 
 ```
-GPIO25 -- 1kΩ -- + -- 电压表(+)         GPIO26 -- 1kΩ -- + -- 电压表(+)
-                 |                                       |
-                10µF                                    10µF
-                 |                                       |
-                GND                                     GND
+ESP32 GPIO25 ── [1kΩ] ── 电流表 CPU (+)        ESP32 GPIO26 ── [1kΩ] ── 电流表 GPU (+)
+                         电流表 CPU (-) ── GND                          电流表 GPU (-) ── GND
 ```
 
 ## 协议
@@ -120,7 +132,7 @@ GPIO25 -- 1kΩ -- + -- 电压表(+)         GPIO26 -- 1kΩ -- + -- 电压表(+)
 CPU:42,GPU:78\n
 ```
 
-数值是 0~100 的整数百分比. ESP32 端用 `String.indexOf` 解析, 不需要 CRC -- 偶发丢字符只会让本帧失效, 下一行就同步.
+数值是 0~100 的整数百分比. ESP32 端用 `String.indexOf` 解析, 不需要 CRC—偶发丢字符只会让本帧失效, 下一行就同步.
 
 ## 打包部署 / 开机自启 (Linux)
 
@@ -133,33 +145,33 @@ CPU:42,GPU:78\n
 ### 安装 (一次性, 需 sudo)
 
 ```bash
-cd ~/project/monitor
+cd ~/project/gaugepunk
 sudo ./scripts/install-service.sh
 ```
 
 脚本会自动:
-1. 把 `scripts/monitor.service.template` 渲染成 `/etc/systemd/system/monitor.service`
+1. 把 `scripts/gaugepunk.service.template` 渲染成 `/etc/systemd/system/gaugepunk.service`
 2. 通过 `SupplementaryGroups=dialout` 注入串口权限 (无需依赖登录会话)
-3. `systemctl enable --now monitor` 启用并立即启动
+3. `systemctl enable --now gaugepunk` 启用并立即启动
 
 ### 日常运维
 
 ```bash
-sudo systemctl status monitor          # 状态
-sudo systemctl stop monitor            # 停止
-sudo systemctl start monitor           # 启动
-sudo systemctl restart monitor         # 重启
-sudo journalctl -u monitor -f          # 实时日志 (Ctrl+C 退出)
-sudo journalctl -u monitor -n 100      # 最近 100 行
+sudo systemctl status gaugepunk          # 状态
+sudo systemctl stop gaugepunk            # 停止
+sudo systemctl start gaugepunk           # 启动
+sudo systemctl restart gaugepunk         # 重启
+sudo journalctl -u gaugepunk -f          # 实时日志 (Ctrl+C 退出)
+sudo journalctl -u gaugepunk -n 100      # 最近 100 行
 ```
 
 ### 临时手动启动 (不走 systemd, 适合调试)
 
 ```bash
-./scripts/start.sh                     # 前台运行 + 实时打印每帧, Ctrl+C 退出
+./scripts/start.sh                       # 前台运行 + 实时打印每帧, Ctrl+C 退出
 ```
 
-> ⚠️ 手动启动前请先 `sudo systemctl stop monitor`, 否则两个进程会抢同一个串口.
+> ⚠️ 手动启动前请先 `sudo systemctl stop gaugepunk`, 否则两个进程会抢同一个串口.
 
 ### 卸载
 
@@ -169,11 +181,11 @@ sudo ./scripts/uninstall-service.sh
 
 ### 修改 conda 环境名
 
-默认 service 调用 `monitor` 这个 conda 环境. 如果你换了名字:
+默认 service 调用 `gaugepunk` 这个 conda 环境. 如果你换了名字:
 
 ```bash
-sudo systemctl edit monitor    # 加入 [Service]\nEnvironment=MONITOR_CONDA_ENV=<新名字>
-sudo systemctl restart monitor
+sudo systemctl edit gaugepunk    # 加入 [Service]\nEnvironment=GAUGEPUNK_CONDA_ENV=<新名字>
+sudo systemctl restart gaugepunk
 ```
 
 ## 故障排查
@@ -181,10 +193,12 @@ sudo systemctl restart monitor
 | 现象 | 可能原因 | 处理 |
 | --- | --- | --- |
 | `Permission denied` 打不开串口 | 未加入 dialout 组 | `sudo usermod -aG dialout $USER`, 重新登录 |
-| 串口能打开但 ESP32 没反应 | 烧错引脚 / 没共地 / RC 滤波电容方向反 | 在 ESP32 串口监视器看 `[rx]` 行 |
+| 串口能打开但 ESP32 没反应 | 烧错引脚 / 没共地 | 在 ESP32 串口监视器看 `[rx]` 行 |
 | 指针抖得厉害 | `SMOOTH_ALPHA` 太大 | 改为 0.1 或 0.05 |
 | 指针响应太慢 | `SMOOTH_ALPHA` 太小 | 改回 0.2~0.3 |
-| 满载时指针不到底 | 电压表量程 > 3.3V | 换 3V 表, 或加运放放大 (见 wiring.md) |
+| 满载时指针不到底 | 电流表实际量程比标称低, 或限流电阻太大 | 把 `PWM_DUTY_CAP_*` 调高, 极限是 100% (软件已经无法补偿就换更小的限流电阻) |
+| 满载时撞钉 | `PWM_DUTY_CAP_*` 太高 | 降低, 用 `calibrate.py` 找精确值 |
+| 通电时听到啸叫 | PWM 频率落在人耳听觉范围内 | 已默认 32 kHz, 如果仍有微弱啸叫推到 78 kHz |
 | 上位机崩了指针卡在高位 | 没触发超时回零 | 检查固件 `LINK_TIMEOUT_MS` |
 
 ## 关于 GPU 监控
@@ -195,8 +209,9 @@ sudo systemctl restart monitor
 
 ## 后续可玩
 
-- 给电压表表盘**重画 0~100% 刻度纸** (用 Inkscape, 网上有现成模板).
+- 给电流表表盘**重画 0~100% 刻度纸** (用 Inkscape, 网上有现成模板).
 - 加一颗 RGB LED, 占用率 >80% 变红.
 - 用 OLED 同时显示数字, 表头显模拟.
 - 把协议改成二进制 + CRC, 用于工业级稳定性.
 - 通过 BLE/Wi-Fi 让 ESP32 自己拉数据, 摆脱 USB 线.
+- 加第三块表显示内存占用 / 网络带宽 / 硬盘 IO.

@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SERVICE_NAME="monitor.service"
+SERVICE_NAME="gaugepunk.service"
 SERVICE_DST="/etc/systemd/system/$SERVICE_NAME"
 TEMPLATE="$SCRIPT_DIR/$SERVICE_NAME.template"
 
@@ -34,7 +34,7 @@ sed -e "s|@PROJECT_DIR@|$PROJECT_DIR|g" \
     -e "s|@HOME@|$REAL_HOME|g" \
     "$TEMPLATE" > "$SERVICE_DST"
 chmod 644 "$SERVICE_DST"
-chmod +x "$SCRIPT_DIR/monitor-run.sh"
+chmod +x "$SCRIPT_DIR/gaugepunk-run.sh"
 
 echo "[install] daemon-reload"
 systemctl daemon-reload
@@ -50,10 +50,10 @@ cat <<EOF
 
 ------------------------------------------------------------------
 常用命令 (后续不再需要 sudo, 除非 stop/start):
-  实时日志:       sudo journalctl -u monitor -f
-  最近 50 条日志: sudo journalctl -u monitor -n 50
-  停止 / 启动:    sudo systemctl stop|start monitor
-  禁用自启:       sudo systemctl disable monitor
+  实时日志:       sudo journalctl -u gaugepunk -f
+  最近 50 条日志: sudo journalctl -u gaugepunk -n 50
+  停止 / 启动:    sudo systemctl stop|start gaugepunk
+  禁用自启:       sudo systemctl disable gaugepunk
   完全卸载:       sudo ./scripts/uninstall-service.sh
 ------------------------------------------------------------------
 EOF

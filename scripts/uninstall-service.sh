@@ -2,7 +2,7 @@
 # 卸载 system 级 systemd 服务. 需要 sudo.
 set -euo pipefail
 
-SERVICE_NAME="monitor.service"
+SERVICE_NAME="gaugepunk.service"
 SERVICE_DST="/etc/systemd/system/$SERVICE_NAME"
 
 if [[ $EUID -ne 0 ]]; then

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_NAME="${MONITOR_CONDA_ENV:-monitor}"
+ENV_NAME="${GAUGEPUNK_CONDA_ENV:-gaugepunk}"
 
 # 找一个可用的 conda 安装
 for cand in \
@@ -22,7 +22,7 @@ do
 done
 
 if ! command -v conda >/dev/null 2>&1; then
-    echo "[monitor-run] 找不到 conda. 设置 MONITOR_CONDA_ENV 或修改本脚本." >&2
+    echo "[gaugepunk-run] 找不到 conda. 设置 GAUGEPUNK_CONDA_ENV 或修改本脚本." >&2
     exit 1
 fi
 
