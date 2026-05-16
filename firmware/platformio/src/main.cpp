@@ -95,7 +95,13 @@ void setup() {
     writePercent(LEDC_CH_GPU, 0, PWM_MAX_DUTY_GPU);
 
     Serial.println();
-    Serial.print("[boot] monitor firmware v");
+    Serial.println("[boot]   ____                       ____             _    ");
+    Serial.println("[boot]  / ___| __ _ _   _  __ _  __|  _ \\ _   _ _ __ | | __");
+    Serial.println("[boot] | |  _ / _` | | | |/ _` |/ _ \\ |_) | | | | '_ \\| |/ /");
+    Serial.println("[boot] | |_| | (_| | |_| | (_| |  __/  __/| |_| | | | |   < ");
+    Serial.println("[boot]  \\____|\\__,_|\\__,_|\\__, |\\___|_|    \\__,_|_| |_|_|\\_\\");
+    Serial.println("[boot]                    |___/                            ");
+    Serial.print("[boot] firmware v");
 #ifdef MONITOR_FW_VERSION
     Serial.println(MONITOR_FW_VERSION);
 #else

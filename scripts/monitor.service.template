@@ -1,5 +1,5 @@
 [Unit]
-Description=Monitor: CPU/GPU usage to ESP32 analog voltmeters
+Description=GaugePunk: drive analog voltmeters with CPU/GPU usage via ESP32
 # 让 systemd 在 USB 串口出现后再启动 (即便没出现, 程序也会自己重连)
 Wants=dev-ttyUSB0.device
 After=dev-ttyUSB0.device network.target

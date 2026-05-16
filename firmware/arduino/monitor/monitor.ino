@@ -71,7 +71,13 @@ void setup() {
     writePercent(LEDC_CH_GPU, 0, PWM_MAX_DUTY_GPU);
 
     Serial.println();
-    Serial.println("[boot] monitor firmware (arduino)");
+    Serial.println("[boot]   ____                       ____             _    ");
+    Serial.println("[boot]  / ___| __ _ _   _  __ _  __|  _ \\ _   _ _ __ | | __");
+    Serial.println("[boot] | |  _ / _` | | | |/ _` |/ _ \\ |_) | | | | '_ \\| |/ /");
+    Serial.println("[boot] | |_| | (_| | |_| | (_| |  __/  __/| |_| | | | |   < ");
+    Serial.println("[boot]  \\____|\\__,_|\\__,_|\\__, |\\___|_|    \\__,_|_| |_|_|\\_\\");
+    Serial.println("[boot]                    |___/                            ");
+    Serial.println("[boot] firmware (arduino)");
     Serial.printf("[boot] PWM freq=%uHz res=%ubit\n", (unsigned)PWM_FREQ_HZ, (unsigned)PWM_RES_BITS);
     Serial.printf("[boot] caps: CPU=%.1f%% (max_duty=%u), GPU=%.1f%% (max_duty=%u)\n",
                   PWM_DUTY_CAP_CPU, (unsigned)PWM_MAX_DUTY_CPU,

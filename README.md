@@ -1,6 +1,8 @@
-# Monitor — CPU/GPU 模拟电压表显示器
+# GaugePunk
 
-> Ubuntu 把当前 CPU 和 GPU 占用率通过 USB 串口发给 ESP32-WROOM, 由 ESP32 用 PWM + RC 低通驱动两块模拟指针电压表显示.
+> *用复古的模拟仪表显示数字时代的脉搏.*
+>
+> Ubuntu 把当前 CPU 和 GPU 占用率通过 USB 串口发给 ESP32-WROOM, 由 ESP32 用 PWM 驱动两块模拟指针电流表显示——两根指针随着系统负载摇摆, 蒸汽朋克味的桌面装饰.
 
 ## 目录结构
 
