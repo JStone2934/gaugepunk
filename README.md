@@ -120,6 +120,60 @@ CPU:42,GPU:78\n
 
 数值是 0~100 的整数百分比. ESP32 端用 `String.indexOf` 解析, 不需要 CRC -- 偶发丢字符只会让本帧失效, 下一行就同步.
 
+## 打包部署 / 开机自启 (Linux)
+
+项目自带 `scripts/` 一键脚本, 用 systemd 实现:
+- 开机即启动 (不依赖桌面登录)
+- 上位机崩溃后自动重启
+- ESP32 拔插后自动重连
+- 进程日志进 journald, 用 `journalctl` 直接看
+
+### 安装 (一次性, 需 sudo)
+
+```bash
+cd ~/project/monitor
+sudo ./scripts/install-service.sh
+```
+
+脚本会自动:
+1. 把 `scripts/monitor.service.template` 渲染成 `/etc/systemd/system/monitor.service`
+2. 通过 `SupplementaryGroups=dialout` 注入串口权限 (无需依赖登录会话)
+3. `systemctl enable --now monitor` 启用并立即启动
+
+### 日常运维
+
+```bash
+sudo systemctl status monitor          # 状态
+sudo systemctl stop monitor            # 停止
+sudo systemctl start monitor           # 启动
+sudo systemctl restart monitor         # 重启
+sudo journalctl -u monitor -f          # 实时日志 (Ctrl+C 退出)
+sudo journalctl -u monitor -n 100      # 最近 100 行
+```
+
+### 临时手动启动 (不走 systemd, 适合调试)
+
+```bash
+./scripts/start.sh                     # 前台运行 + 实时打印每帧, Ctrl+C 退出
+```
+
+> ⚠️ 手动启动前请先 `sudo systemctl stop monitor`, 否则两个进程会抢同一个串口.
+
+### 卸载
+
+```bash
+sudo ./scripts/uninstall-service.sh
+```
+
+### 修改 conda 环境名
+
+默认 service 调用 `monitor` 这个 conda 环境. 如果你换了名字:
+
+```bash
+sudo systemctl edit monitor    # 加入 [Service]\nEnvironment=MONITOR_CONDA_ENV=<新名字>
+sudo systemctl restart monitor
+```
+
 ## 故障排查
 
 | 现象 | 可能原因 | 处理 |

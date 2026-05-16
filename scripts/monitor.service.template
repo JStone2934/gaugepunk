@@ -1,0 +1,26 @@
+[Unit]
+Description=Monitor: CPU/GPU usage to ESP32 analog voltmeters
+# 让 systemd 在 USB 串口出现后再启动 (即便没出现, 程序也会自己重连)
+Wants=dev-ttyUSB0.device
+After=dev-ttyUSB0.device network.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+# 关键: 显式注入 dialout 组, 让进程能访问 /dev/ttyUSB0
+# 这样无论登录会话如何, service 都有正确的串口权限
+SupplementaryGroups=dialout
+WorkingDirectory=@PROJECT_DIR@
+ExecStart=@PROJECT_DIR@/scripts/monitor-run.sh
+Restart=always
+RestartSec=3
+# stdout / stderr 进 journald, 用 journalctl -u monitor 查看
+StandardOutput=journal
+StandardError=journal
+# conda activate 需要 HOME, 子 shell 会用到 PATH
+Environment=HOME=@HOME@
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+[Install]
+WantedBy=multi-user.target
