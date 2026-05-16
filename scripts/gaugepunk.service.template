@@ -12,10 +12,10 @@ Group=@USER@
 # 这样无论登录会话如何, service 都有正确的串口权限
 SupplementaryGroups=dialout
 WorkingDirectory=@PROJECT_DIR@
-ExecStart=@PROJECT_DIR@/scripts/monitor-run.sh
+ExecStart=@PROJECT_DIR@/scripts/gaugepunk-run.sh
 Restart=always
 RestartSec=3
-# stdout / stderr 进 journald, 用 journalctl -u monitor 查看
+# stdout / stderr 进 journald, 用 journalctl -u gaugepunk 查看
 StandardOutput=journal
 StandardError=journal
 # conda activate 需要 HOME, 子 shell 会用到 PATH
