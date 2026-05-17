@@ -172,6 +172,22 @@ python host\tray.py
 
 > Windows 端不需要也用不上 `scripts/*.sh` (那是 Linux systemd 用的), 托盘版已经覆盖了"开机自启"需求.
 
+#### 1B.7 自动发布新版本到 GitHub Release
+
+仓库 [.github/workflows/release.yml](.github/workflows/release.yml) 已配好自动构建. 推一个 `v*` tag 就会:
+1. 在 windows-latest runner 上跑 PyInstaller 打包
+2. 把 `GaugePunk.exe` + `GaugePunk.exe.sha256` 上传到对应 release
+3. 自动生成 release notes (列出相对上个 tag 的所有 commit)
+
+发布 v1.0.0:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+几分钟后去 [Releases 页面](https://github.com/JStone2934/gaugepunk/releases) 就能看到带 EXE 的发布. 也可以在 GitHub Actions 页面 "Run workflow" 手动触发 (用于测试构建, 不需要打 tag).
+
 ### 2. ESP32 端
 
 #### PlatformIO (推荐)

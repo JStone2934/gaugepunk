@@ -1,0 +1,86 @@
+name: Release Windows EXE
+
+# 触发方式 (二选一即可):
+# 1. 推一个 vX.Y.Z 形式的 tag, 例如:
+#      git tag v1.0.0 && git push origin v1.0.0
+#    工作流自动打包 + 创建 release.
+# 2. 在 GitHub Actions 页面手动 dispatch (用于补传 / 测试构建).
+"on":
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '手动构建时使用的 tag (如 v1.0.0-test); 留空则用 manual-<run-id>'
+        required: false
+        default: ''
+
+permissions:
+  contents: write  # 创建 release 必需
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build EXE with PyInstaller
+        run: pyinstaller gaugepunk.spec --clean --noconfirm
+
+      - name: Verify EXE
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist\GaugePunk.exe)) {
+            Write-Error "dist\GaugePunk.exe 不存在, 打包失败"
+            exit 1
+          }
+          $item = Get-Item dist\GaugePunk.exe
+          $sizeMB = [Math]::Round($item.Length / 1MB, 2)
+          Write-Host "OK: GaugePunk.exe ($sizeMB MB)"
+
+      - name: Generate SHA256
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash dist\GaugePunk.exe -Algorithm SHA256).Hash.ToLower()
+          $line = "$hash  GaugePunk.exe"
+          $line | Out-File -FilePath dist\GaugePunk.exe.sha256 -Encoding ASCII -NoNewline
+          Write-Host $line
+
+      - name: Determine release tag
+        id: tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/*') {
+            $tag = $env:GITHUB_REF -replace '^refs/tags/', ''
+          } elseif ('${{ github.event.inputs.tag }}' -ne '') {
+            $tag = '${{ github.event.inputs.tag }}'
+          } else {
+            $tag = "manual-${{ github.run_id }}"
+          }
+          Write-Host "tag = $tag"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: GaugePunk ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/GaugePunk.exe
+            dist/GaugePunk.exe.sha256
