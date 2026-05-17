@@ -18,8 +18,10 @@ static const int       LEDC_CH_CPU     = 0;
 static const int       LEDC_CH_GPU     = 1;
 static const uint32_t  PWM_FREQ_HZ     = 32000; // 32 kHz 超出人耳, 消除线圈啸叫
 static const uint8_t   PWM_RES_BITS    = 10;    // 1024 级, 对模拟指针足够
-static const float     PWM_DUTY_CAP_CPU = 13.5f;  // CPU 通道占空比上限 (0~100)
-static const float     PWM_DUTY_CAP_GPU = 100.0f; // GPU 通道占空比上限 (0~100)
+// 固件 cap 直通: 协议百分比 = PWM 百分比. 校准由上位机的 host/config.yaml
+// meters.cpu_cap_pct / gpu_cap_pct 控制, 修改后重启上位机即可生效, 不再需要重烧.
+static const float     PWM_DUTY_CAP_CPU = 100.0f;
+static const float     PWM_DUTY_CAP_GPU = 100.0f;
 static const uint32_t  PWM_MAX_DUTY_CPU = (uint32_t)(((1u << PWM_RES_BITS) - 1) * PWM_DUTY_CAP_CPU / 100.0f);
 static const uint32_t  PWM_MAX_DUTY_GPU = (uint32_t)(((1u << PWM_RES_BITS) - 1) * PWM_DUTY_CAP_GPU / 100.0f);
 static const float     SMOOTH_ALPHA    = 0.2f;

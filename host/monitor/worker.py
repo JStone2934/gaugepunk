@@ -19,6 +19,15 @@ from .stats import Sample, Sampler, build_gpu_monitor
 log = logging.getLogger(__name__)
 
 
+def _clamp_cap(v: float) -> float:
+    """把表头 cap 钳到 [0, 100], 防止 yaml 写崩了直接撞针."""
+    if v < 0:
+        return 0.0
+    if v > 100:
+        return 100.0
+    return v
+
+
 @dataclass
 class WorkerConfig:
     """从 config.yaml 抽出来的运行参数."""
@@ -30,12 +39,16 @@ class WorkerConfig:
     cpu_window: float = 0.1
     gpu_vendor: str = "NVIDIA"
     gpu_index: int = 0
+    # 协议百分比 100% 实际写出去的 PWM 占空比上限 (软件端缩放, 固件 cap 永远 100).
+    cpu_cap_pct: float = 100.0
+    gpu_cap_pct: float = 100.0
 
     @classmethod
     def from_dict(cls, cfg: dict[str, Any]) -> "WorkerConfig":
         s = cfg.get("serial", {}) or {}
         smp = cfg.get("sampling", {}) or {}
         g = cfg.get("gpu", {}) or {}
+        m = cfg.get("meters", {}) or {}
         return cls(
             port=str(s.get("port", "auto")),
             baudrate=int(s.get("baudrate", 115200)),
@@ -44,6 +57,8 @@ class WorkerConfig:
             cpu_window=float(smp.get("cpu_window", 0.1)),
             gpu_vendor=str(g.get("vendor", "NVIDIA")),
             gpu_index=int(g.get("index", 0)),
+            cpu_cap_pct=_clamp_cap(float(m.get("cpu_cap_pct", 100.0))),
+            gpu_cap_pct=_clamp_cap(float(m.get("gpu_cap_pct", 100.0))),
         )
 
 
@@ -69,12 +84,15 @@ def run_loop(
             write_timeout=cfg.write_timeout,
         )
 
-    log.info("采集开始, 周期 %.3fs", cfg.interval)
+    log.info(
+        "采集开始, 周期 %.3fs, 表头 cap: CPU=%.1f%% GPU=%.1f%%",
+        cfg.interval, cfg.cpu_cap_pct, cfg.gpu_cap_pct,
+    )
     next_tick = time.monotonic()
     try:
         while not stop_event.is_set():
             sample = sampler.read()
-            payload = encode(sample)
+            payload = encode(sample, cpu_cap=cfg.cpu_cap_pct, gpu_cap=cfg.gpu_cap_pct)
             sent = True
             if link is not None:
                 sent = link.send(payload)

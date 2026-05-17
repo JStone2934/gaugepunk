@@ -140,13 +140,15 @@ python host\main.py --echo
 
 按 Ctrl+C 退出.
 
-#### 1B.5 校准 (用法与 Linux 一致)
+#### 1B.5 校准 (改 yaml + 重启, 无需烧固件)
 
 ```powershell
-python host\calibrate.py 100 0     # 只锁 CPU 满载
-python host\calibrate.py 0 100     # 只锁 GPU 满载
-python host\calibrate.py --sweep   # 0 -> 100 -> 0 扫描
+python host\calibrate.py 100 0     # 只动 CPU 通道, 找让 CPU 表满偏的值
+python host\calibrate.py 0 100     # 只动 GPU 通道, 找让 GPU 表满偏的值
+python host\calibrate.py --sweep   # 0 -> 100 -> 0 扫描观察
 ```
+
+记下让 CPU / GPU 各自满偏的协议百分比, 写到 `host\config.yaml` 的 `meters.cpu_cap_pct` / `gpu_cap_pct`, 重启上位机即生效. 详见上文 "3. 校准" 章节.
 
 #### 1B.6 托盘版 (推荐桌面使用) 和打包成 EXE
 
@@ -208,20 +210,33 @@ pio device monitor -b 115200       # 看串口输出 (会被上位机抢占, 仅
 
 ### 3. 校准
 
-第一次接好电流表后, 用 `host/calibrate.py` 调整 `PWM_DUTY_CAP_CPU` / `PWM_DUTY_CAP_GPU`:
+第一次接好两块表后需要校准, 否则灵敏度高的表会撞针, 灵敏度低的表又到不了满偏. 校准结果写在 [host/config.yaml](host/config.yaml) 的 `meters` 段, 改完重启上位机即生效, **不需要重烧固件** (固件本身的 cap 已经写死为 100, 直通模式).
+
+#### 3.1 找校准值
+
+跑校准工具 (托盘程序要先退出, 否则抢串口):
 
 ```bash
-python host/calibrate.py 100 0     # 只锁 CPU 满载, 观察 CPU 表指针
-python host/calibrate.py 0 100     # 只锁 GPU 满载, 观察 GPU 表指针
-python host/calibrate.py --sweep   # 0 -> 100 -> 0 扫描
+python host/calibrate.py 100 0     # 只动 CPU 通道, 看 CPU 表指针
+python host/calibrate.py 0 100     # 只动 GPU 通道, 看 GPU 表指针
+python host/calibrate.py --sweep   # 0 -> 100 -> 0 扫描 (两通道同步)
 ```
 
-记下两块表"刚好满偏"对应的协议百分比 X / Y, 在固件里:
-```
-new_cap = old_cap × X / 100
+每次 Ctrl+C 退出, 调整命令行第一/第二个数字, 直到对应表头**刚好满偏** (指针到底但不撞钉). 注意 `calibrate.py` 默认不应用 cap 缩放, 它发送的就是直接 PWM 百分比. 记下让 CPU 表满偏的值 `X`, 让 GPU 表满偏的值 `Y`.
+
+#### 3.2 写入配置
+
+编辑 [host/config.yaml](host/config.yaml):
+
+```yaml
+meters:
+  cpu_cap_pct: X     # 例: 5mA 量程表 ~13.5
+  gpu_cap_pct: Y     # 例: 30mA 量程表 ~80
 ```
 
-调好后重新烧录, 即一次到位.
+重启上位机即可. 之后程序运行时, 协议百分比会按 `actual = raw × cap / 100` 在上位机端缩放再发给 ESP32, 协议 100% 永远对应物理满偏.
+
+> **打包版 EXE 校准**: EXE 同目录的 `config.yaml` 是首次启动时自动生成的, 改它然后退出托盘 + 重新启动 EXE 即可.
 
 ### 4. 接线
 
@@ -304,8 +319,8 @@ sudo systemctl restart gaugepunk
 | 串口能打开但 ESP32 没反应 | 烧错引脚 / 没共地 | 在 ESP32 串口监视器看 `[rx]` 行 |
 | 指针抖得厉害 | `SMOOTH_ALPHA` 太大 | 改为 0.1 或 0.05 |
 | 指针响应太慢 | `SMOOTH_ALPHA` 太小 | 改回 0.2~0.3 |
-| 满载时指针不到底 | 电流表实际量程比标称低, 或限流电阻太大 | 把 `PWM_DUTY_CAP_*` 调高, 极限是 100% (软件已经无法补偿就换更小的限流电阻) |
-| 满载时撞钉 | `PWM_DUTY_CAP_*` 太高 | 降低, 用 `calibrate.py` 找精确值 |
+| 满载时指针不到底 | 电流表量程低于硬件能给的最大电流, 或限流电阻太大 | 把 `host/config.yaml` 里对应通道的 `cap_pct` 调高 (最高 100); 还是不够就换小限流电阻 |
+| 满载时撞钉 | `cap_pct` 太高 | 调低, 用 `calibrate.py` 找精确值, 然后写回 `host/config.yaml` |
 | 通电时听到啸叫 | PWM 频率落在人耳听觉范围内 | 已默认 32 kHz, 如果仍有微弱啸叫推到 78 kHz |
 | 上位机崩了指针卡在高位 | 没触发超时回零 | 检查固件 `LINK_TIMEOUT_MS` |
 

@@ -33,7 +33,9 @@ static const uint8_t   PWM_RES_BITS    = 10;       // 0..1023
 // 软件占空比上限 (0~100): 协议中的"100%"对应物理 PWM 占空比的这个百分比.
 // 两块模拟表头灵敏度通常不同, 分别给 CPU 和 GPU 独立校准.
 // 用 host/calibrate.py 测试: 若指针撞针就调小; 若到不了满偏就调大.
-static const float     PWM_DUTY_CAP_CPU = 13.5f;
+// 固件 cap 直通: 协议百分比 = PWM 百分比. 校准由上位机的 host/config.yaml
+// meters.cpu_cap_pct / gpu_cap_pct 控制, 修改后重启上位机即可生效, 不再需要重烧.
+static const float     PWM_DUTY_CAP_CPU = 100.0f;
 static const float     PWM_DUTY_CAP_GPU = 100.0f;
 static const uint32_t  PWM_MAX_DUTY_CPU = (uint32_t)(((1u << PWM_RES_BITS) - 1) * PWM_DUTY_CAP_CPU / 100.0f);
 static const uint32_t  PWM_MAX_DUTY_GPU = (uint32_t)(((1u << PWM_RES_BITS) - 1) * PWM_DUTY_CAP_GPU / 100.0f);
