@@ -13,6 +13,14 @@ firmware/platformio/.piolibdeps/
 # Arduino IDE
 firmware/arduino/**/build/
 
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# Runtime artifacts (生成在 EXE 同目录或开发态项目根)
+gaugepunk.log
+
 # Editors
 .idea/
 .vscode/

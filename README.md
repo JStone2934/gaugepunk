@@ -11,14 +11,23 @@ gaugepunk/
 ├── README.md                      本文档
 ├── environment.yml                conda 环境定义 (name: gaugepunk)
 ├── requirements.txt               pip 依赖 (备用)
-├── host/                          Ubuntu 上位机 (Python)
-│   ├── main.py                    主程序
+├── gaugepunk.spec                 PyInstaller spec (打包 Windows EXE 用)
+├── assets/
+│   └── gaugepunk_icon_source.png  图标源文件 (1024 PNG)
+├── host/                          上位机 (Python, Linux + Windows)
+│   ├── main.py                    CLI 主程序
+│   ├── tray.py                    Windows 托盘版主入口
 │   ├── calibrate.py               手动校准工具
-│   ├── config.yaml                端口/采样/GPU 厂商配置
+│   ├── config.yaml                端口/采样/GPU 厂商配置 (默认模板)
+│   ├── assets/
+│   │   └── gaugepunk.ico          托盘 + EXE 图标 (多分辨率 ICO)
 │   └── monitor/
 │       ├── stats.py               CPU/GPU 采集
 │       ├── serial_link.py         串口连接 + 自动重连
-│       └── protocol.py            帧编码
+│       ├── protocol.py            帧编码
+│       ├── worker.py              采集 + 串口主循环 (供 CLI / 托盘复用)
+│       ├── paths.py               打包/开发态资源路径解析
+│       └── autostart.py           Windows 注册表自启动管理
 ├── firmware/                      ESP32 固件
 │   ├── platformio/                PlatformIO 工程 (推荐)
 │   │   ├── platformio.ini
@@ -26,11 +35,13 @@ gaugepunk/
 │   └── arduino/gaugepunk/         Arduino IDE 工程 (等价)
 │       └── gaugepunk.ino
 ├── scripts/                       打包部署
-│   ├── gaugepunk-run.sh           启动包装 (conda activate + exec)
-│   ├── gaugepunk.service.template systemd unit 模板
-│   ├── install-service.sh         一键装服务
-│   ├── uninstall-service.sh       一键卸服务
-│   └── start.sh                   手动前台启动 (调试用)
+│   ├── build-windows.ps1          Windows 一键打包 (PyInstaller)
+│   ├── make-icon.py               把 PNG 转 ICO (换图标时跑一次)
+│   ├── gaugepunk-run.sh           Linux: 启动包装 (conda activate + exec)
+│   ├── gaugepunk.service.template Linux: systemd unit 模板
+│   ├── install-service.sh         Linux: 一键装服务
+│   ├── uninstall-service.sh       Linux: 一键卸服务
+│   └── start.sh                   Linux: 手动前台启动 (调试用)
 └── docs/
     └── wiring.md                  接线图与元件清单
 ```
@@ -137,7 +148,29 @@ python host\calibrate.py 0 100     # 只锁 GPU 满载
 python host\calibrate.py --sweep   # 0 -> 100 -> 0 扫描
 ```
 
-> Windows 端不需要也用不上 `scripts/*.sh` (那是 Linux systemd 用的), 本项目暂不提供 Windows 服务化方案.
+#### 1B.6 托盘版 (推荐桌面使用) 和打包成 EXE
+
+Windows 上更推荐 **托盘版**: 不占控制台, 双击启动, 右下角一个仪表盘图标, 鼠标悬停看实时 CPU/GPU, 右键菜单可以切换"开机自启动"或"退出".
+
+开发态运行:
+
+```powershell
+python host\tray.py
+```
+
+一键打包成单文件 `GaugePunk.exe` (~16MB):
+
+```powershell
+.\scripts\build-windows.ps1
+```
+
+产物在 `dist\GaugePunk.exe`. 双击启动:
+- 第一次会在 EXE 同目录自动生成 `config.yaml` 和 `gaugepunk.log`
+- 托盘图标出现在屏幕右下角
+- 右键 → "开机自启动" 切换 (写注册表 `HKCU\...\Run\GaugePunk`, **不需要管理员权限**)
+- 右键 → "退出" 干净关闭, 串口释放, 指针超时归零
+
+> Windows 端不需要也用不上 `scripts/*.sh` (那是 Linux systemd 用的), 托盘版已经覆盖了"开机自启"需求.
 
 ### 2. ESP32 端
 

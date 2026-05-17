@@ -9,3 +9,8 @@ dependencies:
       - pyserial>=3.5
       - nvidia-ml-py>=12.0
       - pyyaml>=6.0
+      # 托盘 UI (Windows 双击运行托盘版用)
+      - pystray>=0.19
+      - Pillow>=10.0
+      # 仅用于打包 EXE, 不参与运行时
+      - pyinstaller>=6.0
