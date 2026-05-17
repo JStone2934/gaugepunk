@@ -6,12 +6,15 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import sys
 from dataclasses import dataclass
 from typing import Optional
 
 import psutil
 
 log = logging.getLogger(__name__)
+
+_IS_LINUX = sys.platform.startswith("linux")
 
 
 @dataclass
@@ -116,8 +119,18 @@ def build_gpu_monitor(vendor: str, index: int = 0) -> GpuMonitor:
     if v == "NVIDIA":
         return NvidiaGpuMonitor(index=index)
     if v == "AMD":
+        if not _IS_LINUX:
+            raise RuntimeError(
+                "AMD GPU 监控当前只在 Linux 实现 (依赖 /sys/class/drm). "
+                "在 Windows / macOS 上请把 host/config.yaml 的 gpu.vendor 改为 NVIDIA 或 NONE."
+            )
         return AmdGpuMonitor(index=index)
     if v == "INTEL":
+        if not _IS_LINUX:
+            raise RuntimeError(
+                "Intel GPU 监控当前只在 Linux 实现 (依赖 intel_gpu_top). "
+                "在 Windows / macOS 上请把 host/config.yaml 的 gpu.vendor 改为 NVIDIA 或 NONE."
+            )
         return IntelGpuMonitor()
     return DummyGpuMonitor()
 

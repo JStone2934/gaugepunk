@@ -80,6 +80,65 @@ python host/main.py
 
 按 Ctrl+C 退出.
 
+### 1B. Windows 端
+
+Windows 10 / 11 完整支持上位机 (CPU 监控 + NVIDIA GPU 监控 + USB 串口). AMD / Intel GPU 监控目前仅 Linux, 详见后文.
+
+#### 1B.1 USB 串口驱动
+
+ESP32-WROOM 板载多用 CP2102 或 CH340. Windows 10/11 多数能自动装好, 接上后在"设备管理器 -> 端口 (COM 和 LPT)" 里能看到 `Silicon Labs CP210x ... (COM3)` 或 `USB-SERIAL CH340 (COM3)` 这种条目即正常. 没识别就装:
+
+- [Silicon Labs CP210x VCP](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers)
+- [WCH CH340 驱动](http://www.wch-ic.com/downloads/CH341SER_EXE.html)
+
+#### 1B.2 conda 环境
+
+PowerShell 或 Anaconda Prompt 都行 (推荐先装 [Miniconda](https://docs.conda.io/en/latest/miniconda.html)):
+
+```powershell
+conda env create -f environment.yml   # 第一次安装
+conda activate gaugepunk              # 之后每次
+```
+
+#### 1B.3 配置
+
+编辑 `host/config.yaml`:
+
+```yaml
+serial:
+  port: auto          # 或写死 "COM3"
+  baudrate: 115200
+sampling:
+  interval: 0.2
+gpu:
+  vendor: NVIDIA      # Windows 下只支持 NVIDIA / NONE
+  index: 0
+```
+
+`port: auto` 通常就够了 (按 VID:PID 优先识别 CP2102 / CH340 / FT232 / ESP32-S2/S3 原生 USB). 如果你装了多个 USB 串口设备想精确指定, 在"设备管理器"里看到 `(COM3)` 就在配置里写 `port: COM3`.
+
+#### 1B.4 运行
+
+```powershell
+# 干跑 (不开串口, 只在终端打印, 不需要硬件就能调试上位机)
+python host\main.py --dry-run --echo
+
+# 正式运行 (要先把 ESP32 插上)
+python host\main.py --echo
+```
+
+按 Ctrl+C 退出.
+
+#### 1B.5 校准 (用法与 Linux 一致)
+
+```powershell
+python host\calibrate.py 100 0     # 只锁 CPU 满载
+python host\calibrate.py 0 100     # 只锁 GPU 满载
+python host\calibrate.py --sweep   # 0 -> 100 -> 0 扫描
+```
+
+> Windows 端不需要也用不上 `scripts/*.sh` (那是 Linux systemd 用的), 本项目暂不提供 Windows 服务化方案.
+
 ### 2. ESP32 端
 
 #### PlatformIO (推荐)
@@ -203,9 +262,11 @@ sudo systemctl restart gaugepunk
 
 ## 关于 GPU 监控
 
-- **NVIDIA**: 使用官方 `nvidia-ml-py` (NVML), 已在 RTX 5070 Ti 上验证.
-- **AMD**: 读取 `/sys/class/drm/card{index}/device/gpu_busy_percent`, 需要内核 amdgpu 驱动.
-- **Intel**: 占位实现, 实际启用需要给 `intel_gpu_top` 提权或者用 `perf_event_open`. 暂未优先支持.
+- **NVIDIA**: 使用官方 `nvidia-ml-py` (NVML), 已在 RTX 5070 Ti 上验证. **Linux + Windows 均支持**.
+- **AMD**: 读取 `/sys/class/drm/card{index}/device/gpu_busy_percent`, 需要内核 amdgpu 驱动. **仅 Linux**.
+- **Intel**: 占位实现, 实际启用需要给 `intel_gpu_top` 提权或者用 `perf_event_open`. **仅 Linux**, 暂未优先支持.
+
+> Windows 上若 `gpu.vendor` 设为 `AMD` 或 `INTEL`, 程序会在启动时直接抛错并提示改回 `NVIDIA` / `NONE`, 不会静默假数据.
 
 ## 后续可玩
 

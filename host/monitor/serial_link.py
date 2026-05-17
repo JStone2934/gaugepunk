@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 import time
 from typing import Iterable, Optional
 
@@ -9,6 +10,8 @@ import serial
 from serial.tools import list_ports
 
 log = logging.getLogger(__name__)
+
+_IS_WINDOWS = sys.platform.startswith("win")
 
 # 常见 USB-UART 桥接芯片的 VID:PID, 用于在 port=auto 时优先识别
 _KNOWN_VIDPID: set[tuple[int, int]] = {
@@ -20,6 +23,22 @@ _KNOWN_VIDPID: set[tuple[int, int]] = {
 }
 
 
+def _looks_like_serial_device(device: str) -> bool:
+    """跨平台兜底: 判断一个 device 字符串是否像我们想要的串口.
+
+    - Windows: COM3 / COM12 之类
+    - Linux:   /dev/ttyUSB* 或 /dev/ttyACM*
+    - macOS:   /dev/cu.usbserial* 或 /dev/cu.SLAB_USBtoUART 等 (尽量包容)
+    """
+    if _IS_WINDOWS:
+        return device.upper().startswith("COM")
+    if device.startswith(("/dev/ttyUSB", "/dev/ttyACM")):
+        return True
+    if device.startswith(("/dev/cu.usbserial", "/dev/cu.SLAB", "/dev/cu.wchusbserial")):
+        return True
+    return False
+
+
 def discover_port() -> Optional[str]:
     """扫描串口, 返回第一个看起来像 ESP32 的设备路径."""
     candidates: list[str] = []
@@ -28,11 +47,10 @@ def discover_port() -> Optional[str]:
         if vid is not None and pid is not None and (vid, pid) in _KNOWN_VIDPID:
             log.info("发现 ESP32 候选端口: %s (%04x:%04x %s)", p.device, vid, pid, p.description)
             return p.device
-        # 兜底: /dev/ttyUSB* 和 /dev/ttyACM* 都收集起来
-        if p.device.startswith(("/dev/ttyUSB", "/dev/ttyACM")):
+        if _looks_like_serial_device(p.device):
             candidates.append(p.device)
     if candidates:
-        log.info("未匹配到已知芯片, 退而使用第一个 USB/ACM 端口: %s", candidates[0])
+        log.info("未匹配到已知芯片, 退而使用第一个串口: %s", candidates[0])
         return candidates[0]
     return None
 
